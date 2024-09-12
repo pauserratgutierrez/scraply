@@ -40,7 +40,7 @@ const init = () => {
 };
 
 const start = async () => {
-  console.log(`STARTING CRAWLER
+  console.log(`STARTING SCRAPLY CRAWLER...
   - Initial URLs: ${CONFIG.CRAWLER.INITIAL_URLS}
   - Include URLs: ${CONFIG.CRAWLER.INCLUDE_URLS}
   - Excluded Patterns: ${CONFIG.CRAWLER.EXCLUDE_PATTERNS}
