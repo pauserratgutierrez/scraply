@@ -4,16 +4,11 @@ import { loadJSON, saveQueue, deleteDataFiles } from './utils/crawl/fileOperatio
 import { processURL } from './utils/crawl/url/processor.js';
 import { formatData, saveSortedFormattedJSON, saveHardcodedExtraLinks } from './utils/format/formatData.js';
 
-const userConfig = {};
-
-// Load and merge the configuration
-const CONFIG = loadConfig(userConfig);
-global.CONFIG = CONFIG;
-
 let urlData = [];
 let urlMetadata = {};
+let CONFIG = {};
 
-export const initializeCrawler = () => {
+const initializeCrawler = () => {
   urlData = loadJSON(CONFIG.CRAWLER.QUEUE_PATH);
 
   if (urlData.length === 0) { // If the queue is empty, start fresh with the initial URLs.
@@ -44,7 +39,7 @@ export const initializeCrawler = () => {
   }
 };
 
-export const scraply = async () => {
+const crawler = async () => {
   console.log(`STARTING CRAWLER
   - Initial URLs: ${CONFIG.CRAWLER.INITIAL_URLS}
   - Include URLs: ${CONFIG.CRAWLER.INCLUDE_URLS}
@@ -114,4 +109,13 @@ export const scraply = async () => {
   saveSortedFormattedJSON(CONFIG.DATA_FORMATTER.ERROR_REPORT_PATH, errorData);
 
   console.log(`Errors: ${errorData.length} -> ${CONFIG.DATA_FORMATTER.ERROR_REPORT_PATH}.`);
+};
+
+// Main function to be exported and used
+export const scraply = async (userConfig = {}) => {
+  CONFIG = loadConfig(userConfig);
+  global.CONFIG = CONFIG;
+
+  initializeCrawler();
+  await crawler();
 };
