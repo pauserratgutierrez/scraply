@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { DEFAULT_CONFIG } from './config.js';
+import { DEFAULT_CONFIG } from './defaultConfig.js';
 
 // A utility function to perform a deep merge of objects
 function deepMerge(target, source) {
@@ -20,6 +20,11 @@ export function loadConfig(userConfig = {}) {
   config.CRAWLER.CRAWLED_PATH = path.join(config.MAIN_DIR, 'crawled');
   config.DATA_FORMATTER.FORMATTED_PATH = path.join(config.MAIN_DIR, 'formatted');
   config.DATA_FORMATTER.ERROR_REPORT_PATH = path.join(config.MAIN_DIR, 'error-report.json');
+
+  // If INCLUDE_URLS is not specified, set it to INITIAL_URLS by default
+  if (!config.CRAWLER.INCLUDE_URLS || config.CRAWLER.INCLUDE_URLS.length === 0) {
+    config.CRAWLER.INCLUDE_URLS = config.CRAWLER.INITIAL_URLS.map(url => `${url}.*`);
+  }
 
   return config;
 };
