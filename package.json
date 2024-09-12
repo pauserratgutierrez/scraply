@@ -1,13 +1,16 @@
 {
   "name": "scraply",
   "description": "A simple, configurable and functional content scraper",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "src/scraply.js",
   "type": "module",
   "scripts": {
     "start": "node ."
   },
-  "keywords": ["crawler", "scraper"],
+  "keywords": [
+    "crawler",
+    "scraper"
+  ],
   "author": "Pau Serrat Gutiérrez",
   "dependencies": {
     "axios": "^1.7.7",
