@@ -13,7 +13,7 @@ global.CONFIG = CONFIG;
 let urlData = [];
 let urlMetadata = {};
 
-const initializeCrawler = () => {
+export const initializeCrawler = () => {
   urlData = loadJSON(CONFIG.CRAWLER.QUEUE_PATH);
 
   if (urlData.length === 0) { // If the queue is empty, start fresh with the initial URLs.
@@ -44,7 +44,7 @@ const initializeCrawler = () => {
   }
 };
 
-const app = async () => {
+export const scraply = async () => {
   console.log(`STARTING CRAWLER
   - Initial URLs: ${CONFIG.CRAWLER.INITIAL_URLS}
   - Include URLs: ${CONFIG.CRAWLER.INCLUDE_URLS}
@@ -115,6 +115,3 @@ const app = async () => {
 
   console.log(`Errors: ${errorData.length} -> ${CONFIG.DATA_FORMATTER.ERROR_REPORT_PATH}.`);
 };
-
-initializeCrawler();
-await app();
