@@ -1,7 +1,7 @@
 {
   "name": "scraply",
   "description": "A simple, configurable and functional content scraper",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "main": "src/scraply.js",
   "type": "module",
   "scripts": {
