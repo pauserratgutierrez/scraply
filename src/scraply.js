@@ -19,6 +19,9 @@ const init = () => {
       urlData.push({ url: normalizedURL, file: null, status: null, error: null });
     });
     saveQueue(urlData);
+
+    // Delete everything under CONFIG.MAIN_DIR
+    deleteDataFiles(CONFIG.MAIN_DIR);
   } else { // If the queue is not empty
     const allProcessed = urlData.every(entry => entry.file !== null || entry.error !== null);
     if (allProcessed) { // If all URLs have been processed
@@ -27,10 +30,11 @@ const init = () => {
       urlData = [];
       urlMetadata = {};
 
-      // Delete everything except CONFIG.DATA_FORMATTER.FORMATTED_PATH, so that the formatted data is always preserved until the crawler really finalizes the data. This way, the Discord Bot will fetch the correct & latest data from the GitHub repo, without fetching any incomplete data or empty data, as it watches for file diffs!
+      // Delete everything except CONFIG.DATA_FORMATTER.FORMATTED_PATH, so that the formatted data is always preserved until the crawler really finalizes the data.
       deleteDataFiles(CONFIG.CRAWLER.QUEUE_PATH);
       deleteDataFiles(CONFIG.CRAWLER.CRAWLED_PATH);
       deleteDataFiles(CONFIG.DATA_FORMATTER.ERROR_REPORT_PATH);
+
 
       init();
     } else { // If there are URLs that haven't been processed yet, resume from the queue.
