@@ -18,30 +18,24 @@ export const shouldRetry = (error) => {
 
 const shouldIncludeURL = (url) => {
   try {
-    const urlObj = new URL(url);
+    const { INITIAL_URLS, INCLUDE_URLS, EXCLUDE_PATTERNS } = CONFIG.CRAWLER;
 
-    // Check if the URL matches any include pattern
-    const isIncluded = CONFIG.CRAWLER.INCLUDE_URLS.some(pattern => {
-      if (typeof pattern === 'string') {
-        return urlObj.toString().includes(pattern); // Check if the URL contains the string pattern
-      } else if (pattern instanceof RegExp) {
-        return pattern.test(urlObj.toString()); // Check if the URL matches the RegExp pattern
-      }
-    });
+    if (INITIAL_URLS.includes(url)) return true;
 
-    if (!isIncluded) return false; // This URL is not included
+    // Pre-compile string patterns into regular expressions for both include and exclude patterns
+    const compiledExcludePatterns = EXCLUDE_PATTERNS.map(pattern => 
+      typeof pattern === 'string' ? new RegExp(pattern) : pattern
+    );
+    const compiledIncludePatterns = INCLUDE_URLS.map(pattern => 
+      typeof pattern === 'string' ? new RegExp(pattern) : pattern
+    );
 
-    // Check if the URL matches any exclude pattern
-    const isExcluded = CONFIG.CRAWLER.EXCLUDE_PATTERNS.some(pattern => {
-      if (typeof pattern === 'string') {
-        return urlObj.pathname.includes(pattern); // Check if the URL pathname contains the string pattern
-      } else if (pattern instanceof RegExp) {
-        return pattern.test(urlObj.pathname); // Check if the URL pathname matches the RegExp pattern
-      }
-    });
+    if (compiledExcludePatterns.some(pattern => pattern.test(url))) return false;
+    if (compiledIncludePatterns.some(pattern => pattern.test(url))) return true;
 
-    return !isExcluded; // This URL is included and not excluded
+    return false; // If the URL doesn't match any include patterns, exclude it.
   } catch (error) {
+    console.error(`Error processing URL: ${url}`, error);
     return false;
   }
 };
