@@ -48,8 +48,19 @@ export const DEFAULT_CONFIG = {
     CATEGORISED_PATHS: {
       'https://crawler-test.com': {
         'mobile': 'mobile.json',
-        'fallback': 'general.json'
+        '*': 'general.json'
       },
     },
+    HARD_CODED_LINKS: [
+      {
+        file_name: 'hc-links.json',
+        data: [
+          {
+            "url": "https://custom-link.com",
+            "content": "That's a custom link content, you can add as many as you want."
+          },
+        ]
+      }
+    ]
   }
 };

@@ -98,8 +98,8 @@ const start = async () => {
   console.log(`${totalSavedURLs} total saved URLs to ${CONFIG.DATA_FORMATTER.FORMATTED_PATH}`);
 
   // Save hardcoded extra links to files.
-  await saveHardcodedExtraLinks();
-  console.log(`Hardcoded extra links saved to ${CONFIG.DATA_FORMATTER.FORMATTED_PATH}`);
+  const totalHardcodedLinks = await saveHardcodedExtraLinks();
+  console.log(`${totalHardcodedLinks} Hardcoded extra links saved to ${CONFIG.DATA_FORMATTER.FORMATTED_PATH}`);
 
   // Error reporting: Save into CONFIG.DATA_FORMATTER.ERROR_REPORT_PATH the URLs that had any error: Save the url, the referrer, status code and error!
   const errorData = errorUrls.map(entry => {

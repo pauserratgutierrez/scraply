@@ -1,5 +1,5 @@
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
 export const formatData = (entry) => {
   if (entry.file && entry.error === null) {
@@ -9,7 +9,15 @@ export const formatData = (entry) => {
       const isExcluded = CONFIG.DATA_FORMATTER.EXCLUDED_PATTERNS.some(pattern => new RegExp(pattern).test(entry.url));
   
       if (!isExcluded) {
-        const categorisedPath = CONFIG.DATA_FORMATTER.CATEGORISED_PATHS[url.origin]?.[pathname.split('/')[1]] || CONFIG.DATA_FORMATTER.CATEGORISED_PATHS[url.origin]?.fallback;
+        // Check for the specific category path
+        const pathSegments = pathname.split('/');
+        let categorisedPath = CONFIG.DATA_FORMATTER.CATEGORISED_PATHS[url.origin]?.[pathSegments[1]];
+        
+        // If no specific category path is found, use the "*" fallback
+        if (!categorisedPath) {
+          categorisedPath = CONFIG.DATA_FORMATTER.CATEGORISED_PATHS[url.origin]?.['*'];
+        }
+
         if (categorisedPath) {
           return path.join(CONFIG.DATA_FORMATTER.FORMATTED_PATH, categorisedPath); // Return the path where the data should be saved.
         }
@@ -39,18 +47,12 @@ export const saveSortedFormattedJSON = (filePath, data) => {
 };
 
 export const saveHardcodedExtraLinks = async () => {
-  const data = {
-    file_name: 'cs-links.json',
-    data: [
-        {
-          "url": "https://elemn.to/ai",
-          "content": "🧠 AI - How to save time - This page provides valuable insights on how to leverage AI tools for optimizing workflows and saving time across various tasks."
-        },
-    ],
-  };
+  const hardcodedLinks = CONFIG.DATA_FORMATTER.HARD_CODED_LINKS;
 
-  const filePath = path.join(CONFIG.DATA_FORMATTER.FORMATTED_PATH, data.file_name);
-  saveSortedFormattedJSON(filePath, data.data);
+  for (const link of hardcodedLinks) {
+    const filePath = path.join(CONFIG.DATA_FORMATTER.FORMATTED_PATH, link.file_name);
+    saveSortedFormattedJSON(filePath, link.data);
+  }
 
-  return data.data.length;
+  return hardcodedLinks.reduce((acc, link) => acc + link.data.length, 0); // Total number of links saved
 };
