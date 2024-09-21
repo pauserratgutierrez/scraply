@@ -19,7 +19,28 @@ export const shouldRetry = (error) => {
 const shouldIncludeURL = (url) => {
   try {
     const urlObj = new URL(url);
-    return CONFIG.CRAWLER.INCLUDE_URLS.some(pattern => new RegExp(pattern).test(urlObj.toString())) && !CONFIG.CRAWLER.EXCLUDE_PATTERNS.some(pattern => new RegExp(pattern).test(urlObj.pathname));
+
+    // Check if the URL matches any include pattern
+    const isIncluded = CONFIG.CRAWLER.INCLUDE_URLS.some(pattern => {
+      if (typeof pattern === 'string') {
+        return urlObj.toString().includes(pattern); // Check if the URL contains the string pattern
+      } else if (pattern instanceof RegExp) {
+        return pattern.test(urlObj.toString()); // Check if the URL matches the RegExp pattern
+      }
+    });
+
+    if (!isIncluded) return false; // This URL is not included
+
+    // Check if the URL matches any exclude pattern
+    const isExcluded = CONFIG.CRAWLER.EXCLUDE_PATTERNS.some(pattern => {
+      if (typeof pattern === 'string') {
+        return urlObj.pathname.includes(pattern); // Check if the URL pathname contains the string pattern
+      } else if (pattern instanceof RegExp) {
+        return pattern.test(urlObj.pathname); // Check if the URL pathname matches the RegExp pattern
+      }
+    });
+
+    return !isExcluded; // This URL is included and not excluded
   } catch (error) {
     return false;
   }
