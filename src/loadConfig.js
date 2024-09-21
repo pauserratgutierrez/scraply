@@ -26,5 +26,10 @@ export function loadConfig(userConfig = {}) {
     config.CRAWLER.INCLUDE_URLS = config.CRAWLER.INITIAL_URLS.map(url => `${url}.*`);
   }
 
+  // If HARD_CODED_LINKS is missing, set to an empty array by default
+  if (!config.DATA_FORMATTER.HARD_CODED_LINKS) {
+    config.DATA_FORMATTER.HARD_CODED_LINKS = [];
+  }
+
   return config;
 };

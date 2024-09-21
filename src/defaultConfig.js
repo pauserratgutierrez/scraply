@@ -52,15 +52,15 @@ export const DEFAULT_CONFIG = {
       },
     },
     HARD_CODED_LINKS: [
-      {
-        file_name: 'hc-links.json',
-        data: [
-          {
-            "url": "https://custom-link.com",
-            "content": "That's a custom link content, you can add as many as you want."
-          },
-        ]
-      }
+      // {
+      //   file_name: 'hc-links.json',
+      //   data: [
+      //     {
+      //       "url": "https://custom-link.com",
+      //       "content": "That's a custom link content, you can add as many as you want."
+      //     },
+      //   ]
+      // }
     ]
   }
 };
