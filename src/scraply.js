@@ -1,12 +1,14 @@
 import { loadConfig } from './loadConfig.js';
 import { normalizeURL } from './utils/crawl/url/normalize.js';
-import { loadJSON, saveQueue, deleteDataFiles } from './utils/crawl/fileOperations.js';
+import { loadJSON, saveQueue, deleteDataFiles, deleteUntrackedFiles } from './utils/crawl/fileOperations.js';
 import { processURL } from './utils/crawl/url/processor.js';
 import { formatData, saveSortedFormattedJSON, saveHardcodedExtraLinks } from './utils/format/formatData.js';
+import path from 'node:path';
 
 let urlData = [];
 let urlMetadata = {};
 let CONFIG = {};
+let generatedFiles = new Set(); // Track files generated in the current crawl session.
 
 const init = () => {
   urlData = loadJSON(CONFIG.CRAWLER.QUEUE_PATH);
@@ -19,14 +21,12 @@ const init = () => {
       urlData.push({ url: normalizedURL, file: null, status: null, error: null });
     });
     saveQueue(urlData);
-
-    // Delete everything under CONFIG.MAIN_DIR
-    deleteDataFiles(CONFIG.MAIN_DIR);
   } else { // If the queue is not empty
     const allProcessed = urlData.every(entry => entry.file !== null || entry.error !== null);
     if (allProcessed) { // If all URLs have been processed
       console.log(`All URLs in ${CONFIG.CRAWLER.QUEUE_PATH} have been processed. Deleting persistent storage and starting a fresh Crawl...\n`);
 
+      // Reset data for a fresh crawl.
       urlData = [];
       urlMetadata = {};
 
@@ -34,7 +34,6 @@ const init = () => {
       deleteDataFiles(CONFIG.CRAWLER.QUEUE_PATH);
       deleteDataFiles(CONFIG.CRAWLER.CRAWLED_PATH);
       deleteDataFiles(CONFIG.DATA_FORMATTER.ERROR_REPORT_PATH);
-
 
       init();
     } else { // If there are URLs that haven't been processed yet, resume from the queue.
@@ -59,9 +58,12 @@ const start = async () => {
 
   let fileNumber = urlData.filter(entry => entry.file).length + 1;
   for await (const entry of urlData) {
-    if (!entry.file) { // Only process URLs that haven't been processed yet.
-      await processURL(entry, fileNumber, urlData, urlMetadata);
-      fileNumber++; // Increment the file number only if the URL was processed successfully.
+    if (!entry.file) {
+      const processedFile = await processURL(entry, fileNumber, urlData, urlMetadata);
+      if (processedFile) {
+        generatedFiles.add(processedFile); // Track the file generated
+      }
+      fileNumber++;
     }
   }
 
@@ -98,6 +100,7 @@ const start = async () => {
     totalSavedURLs += data.length;
     console.log(`${data.length} -> ${savePath}`);
     saveSortedFormattedJSON(savePath, data);
+    generatedFiles.add(savePath); // Track the file saved
   };
   console.log(`${totalSavedURLs} total saved URLs to ${CONFIG.DATA_FORMATTER.FORMATTED_PATH}`);
 
@@ -105,14 +108,24 @@ const start = async () => {
   const totalHardcodedLinks = await saveHardcodedExtraLinks();
   console.log(`${totalHardcodedLinks} Hardcoded extra links saved to ${CONFIG.DATA_FORMATTER.FORMATTED_PATH}`);
 
+  // Track the files generated for hardcoded links with full paths.
+  CONFIG.DATA_FORMATTER.HARD_CODED_LINKS.forEach(link => {
+    const hardcodedFilePath = path.join(CONFIG.DATA_FORMATTER.FORMATTED_PATH, link.file_name);
+    generatedFiles.add(hardcodedFilePath); // Add the full path to the set
+  });
+
   // Error reporting: Save into CONFIG.DATA_FORMATTER.ERROR_REPORT_PATH the URLs that had any error: Save the url, the referrer, status code and error!
   const errorData = errorUrls.map(entry => {
     return { url: entry.url, status: entry.status, error: entry.error };
   });
-
   saveSortedFormattedJSON(CONFIG.DATA_FORMATTER.ERROR_REPORT_PATH, errorData);
 
   console.log(`Errors: ${errorData.length} -> ${CONFIG.DATA_FORMATTER.ERROR_REPORT_PATH}.`);
+
+  // After formatting data, delete untracked files
+  console.log(`\nCLEANING UP UNTRACKED FILES...`);
+  deleteUntrackedFiles(CONFIG.DATA_FORMATTER.FORMATTED_PATH, generatedFiles); // Delete files not generated during this crawl
+  generatedFiles.clear(); // Clear the set to prepare for future crawls
 };
 
 // Main function to be exported and used

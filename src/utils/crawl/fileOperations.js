@@ -35,3 +35,17 @@ export const deleteDataFiles = (filePath) => {
     }
   }
 };
+
+export const deleteUntrackedFiles = (folderPath, trackedFiles) => {
+  if (fs.existsSync(folderPath)) {
+    fs.readdirSync(folderPath).forEach((file) => {
+      const currentPath = path.join(folderPath, file);
+      if (fs.lstatSync(currentPath).isDirectory()) {
+        deleteUntrackedFiles(currentPath, trackedFiles);
+      } else if (!trackedFiles.has(currentPath)) {
+        console.log(`Deleting untracked file: ${currentPath}`);
+        fs.unlinkSync(currentPath);
+      }
+    });
+  }
+};

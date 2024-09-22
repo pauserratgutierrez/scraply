@@ -1,6 +1,5 @@
 import { delay } from '../delay.js';
 import { cleanHTML } from '../cleanHTML.js';
-
 import * as cheerio from 'cheerio';
 import { shouldRetry, enqueueURLs } from './handlers.js';
 import { fetchURL } from './fetch.js';
@@ -13,7 +12,7 @@ export const processURL = async (entry, fileNumber, urlData, urlMetadata) => {
 
   const { url } = entry;
   const { referrer, depth } = urlMetadata[url] || { referrer: null, depth: 0 }; // Default depth is 0.
-  
+
   const startTime = new Date().getTime();
   try {
     const result = await fetchURL(url, CONFIG.CRAWLER.MAX_RETRIES);
@@ -21,11 +20,15 @@ export const processURL = async (entry, fileNumber, urlData, urlMetadata) => {
       const { data: html, status } = result;
       const $ = cheerio.load(html);
       enqueueURLs(urlData, urlMetadata, $, url, url, depth + 1);
+
       const content = cleanHTML($);
       const filename = saveDataset({ url, referrerURL: referrer, statusCode: status, depth, content }, fileNumber);
+
       entry.file = filename;
       entry.status = status;
       entry.error = null;
+
+      return filename; // Return the filename of the saved dataset
     } else {
       entry.error = result.error;
       entry.status = result.status;
@@ -33,12 +36,18 @@ export const processURL = async (entry, fileNumber, urlData, urlMetadata) => {
   } catch (error) {
     entry.error = error.message;
     entry.status = null;
+  } finally {
+    // Save the queue state whether successful or not
+    saveQueue(urlData);
+
+    const endTime = new Date().getTime();
+    const elapsedTime = endTime - startTime;
+
+    // Apply delay if necessary
+    if (CONFIG.CRAWLER.CRAWL_DELAY_MS > 0 && elapsedTime < CONFIG.CRAWLER.CRAWL_DELAY_MS) {
+      await delay(CONFIG.CRAWLER.CRAWL_DELAY_MS - elapsedTime);
+    }
   }
 
-  saveQueue(urlData);
-
-  const endTime = new Date().getTime();
-  const elapsedTime = endTime - startTime;
-
-  if (CONFIG.CRAWLER.CRAWL_DELAY_MS > 0 && elapsedTime < CONFIG.CRAWLER.CRAWL_DELAY_MS) await delay(CONFIG.CRAWLER.CRAWL_DELAY_MS - elapsedTime);
+  return null; // Return null if no file was generated
 };
