@@ -9,17 +9,22 @@ export const formatData = (entry) => {
       const isExcluded = CONFIG.DATA_FORMATTER.EXCLUDED_PATTERNS.some(pattern => new RegExp(pattern).test(entry.url));
   
       if (!isExcluded) {
-        // Check for the specific category path
-        const pathSegments = pathname.split('/');
-        let categorisedPath = CONFIG.DATA_FORMATTER.CATEGORISED_PATHS[url.origin]?.[pathSegments[1]];
-        
-        // If no specific category path is found, use the "*" fallback
-        if (!categorisedPath) {
-          categorisedPath = CONFIG.DATA_FORMATTER.CATEGORISED_PATHS[url.origin]?.['*'];
-        }
+        const pathSegments = pathname.split('/').filter(Boolean); // filter out empty segments
+        const categorisedPaths = CONFIG.DATA_FORMATTER.CATEGORISED_PATHS[url.origin];
 
-        if (categorisedPath) {
-          return path.join(CONFIG.DATA_FORMATTER.FORMATTED_PATH, categorisedPath); // Return the path where the data should be saved.
+        if (categorisedPaths) {
+          // Try to match the full path segments, reducing specificity step by step
+          let categorisedPath = null;
+
+          for (let i = pathSegments.length; i >= 1; i--) {
+            const pathKey = pathSegments.slice(0, i).join('/');
+            categorisedPath = categorisedPaths[pathKey];
+            if (categorisedPath) break;
+          }
+
+          // Fallback to wildcard match ('*') if no specific path is found
+          if (!categorisedPath) categorisedPath = categorisedPaths['*'];
+          if (categorisedPath) return path.join(CONFIG.DATA_FORMATTER.FORMATTED_PATH, categorisedPath); // Return the path where the data should be saved.
         }
       }
     } catch (e) {
