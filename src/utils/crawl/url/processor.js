@@ -5,21 +5,20 @@ import { shouldRetry, enqueueURLs } from './handlers.js';
 import { fetchURL } from './fetch.js';
 import { saveDataset, saveQueue } from '../fileOperations.js';
 
-export const processURL = async (entry, fileNumber, urlData, urlMetadata) => {
-  if (entry.file || (entry.error && !shouldRetry({ response: { status: entry.status } }))) return;
+export const processURL = async (entry, fileNumber, urlData) => {
+  const startTime = new Date().getTime();
+  const { url, referrer, depth } = entry;
 
+  if (entry.file || (entry.error && !shouldRetry({ response: { status: entry.status } }))) return;
+  
   console.log(`- ${fileNumber}/${urlData.length} -> ${entry.url}`);
 
-  const { url } = entry;
-  const { referrer, depth } = urlMetadata[url] || { referrer: null, depth: 0 }; // Default depth is 0.
-
-  const startTime = new Date().getTime();
   try {
     const result = await fetchURL(url, CONFIG.CRAWLER.MAX_RETRIES);
     if (result && result.data) {
       const { data: html, status } = result;
       const $ = cheerio.load(html);
-      enqueueURLs(urlData, urlMetadata, $, url, url, depth + 1);
+      enqueueURLs(urlData, $, url, depth + 1);
 
       const content = cleanHTML($);
       const filename = saveDataset({ url, referrerURL: referrer, statusCode: status, depth, content }, fileNumber);

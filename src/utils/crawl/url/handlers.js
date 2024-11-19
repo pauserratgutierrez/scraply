@@ -40,7 +40,7 @@ const shouldIncludeURL = (url) => {
   }
 };
 
-export const enqueueURLs = (urlData, urlMetadata, $, baseURL, referrer, depth) => {
+export const enqueueURLs = (urlData, $, baseURL, depth) => {
   $('a[href]').each((_, element) => {
     const href = $(element).attr('href');
     if (!href) return;
@@ -49,8 +49,7 @@ export const enqueueURLs = (urlData, urlMetadata, $, baseURL, referrer, depth) =
       const newURL = new URL(href, baseURL).toString();
       const normalizedURL = normalizeURL(newURL);
       if (shouldIncludeURL(normalizedURL) && !urlData.some(entry => entry.url === normalizedURL)) {
-        urlData.push({ url: normalizedURL, file: null, status: null, error: null, referrerUrl: referrer });
-        urlMetadata[normalizedURL] = { referrer, depth };
+        urlData.push({ url: normalizedURL, file: null, status: null, error: null, referrerUrl: baseURL, depth });
       }
     } catch (error) {
       console.error(`Failed to enqueue URL: ${href} from ${baseURL}: ${error.message}`);

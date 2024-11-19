@@ -5,7 +5,6 @@ import { processURL } from './utils/crawl/url/processor.js';
 import { formatData, saveSortedFormattedJSON } from './utils/format/formatData.js';
 
 let urlData = [];
-let urlMetadata = {};
 let CONFIG = {};
 let generatedFiles = new Set(); // Track files generated in the current crawl session.
 
@@ -17,7 +16,7 @@ const init = () => {
   
     CONFIG.CRAWLER.INITIAL_URLS.forEach(url => {
       const normalizedURL = normalizeURL(url);
-      urlData.push({ url: normalizedURL, file: null, status: null, error: null, referrerUrl: null });
+      urlData.push({ url: normalizedURL, file: null, status: null, error: null, referrerUrl: null, depth: 0 });
     });
     saveQueue(urlData);
   } else { // If the queue is not empty
@@ -27,7 +26,6 @@ const init = () => {
 
       // Reset data for a fresh crawl.
       urlData = [];
-      urlMetadata = {};
 
       // Delete everything except CONFIG.DATA_FORMATTER.FORMATTED_PATH, so that the formatted data is always preserved until the crawler really finalizes the data.
       deleteDataFiles(CONFIG.CRAWLER.QUEUE_PATH);
@@ -57,7 +55,7 @@ const start = async () => {
   let fileNumber = urlData.filter(entry => entry.file).length + 1;
   for await (const entry of urlData) {
     if (!entry.file) {
-      const processedFile = await processURL(entry, fileNumber, urlData, urlMetadata);
+      const processedFile = await processURL(entry, fileNumber, urlData);
       if (processedFile) {
         generatedFiles.add(processedFile); // Track the file generated
       }
