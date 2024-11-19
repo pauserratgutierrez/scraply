@@ -9,7 +9,7 @@ export const processURL = async (entry, fileNumber, urlData) => {
   const startTime = new Date().getTime();
   const { url, referrer, depth } = entry;
 
-  if (entry.file || (entry.error && !shouldRetry({ response: { status: entry.status } }))) return;
+  if (entry.file || (entry.error && !(await shouldRetry({ response: { status: entry.status } })))) return;
   
   console.log(`- ${fileNumber}/${urlData.length} -> ${entry.url}`);
 
