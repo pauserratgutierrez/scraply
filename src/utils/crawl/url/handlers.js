@@ -22,8 +22,8 @@ export const shouldRetry = async (error) => {
       waitTime = Math.max(parseInt(rateLimitReset, 10) - Math.floow(Date.now() / 1000), 0);
       console.log(`Rate limited. Retrying after ${waitTime} seconds...`);
     } else {
-      console.log(`Rate limited. No 'retry-after' or 'x-ratelimit-reset' headers found.`);
       waitTime = CONFIG.CRAWLER.CRAWL_RATE_LIMIT_FALLBACK_DELAY_MS / 1000;
+      console.log(`Rate limited. No 'retry-after' or 'x-ratelimit-reset' headers found. Falling back to ${waitTime} seconds...`);
     }
 
     if (CONFIG.CRAWLER.EXIT_ON_RATE_LIMIT) {
@@ -34,7 +34,7 @@ export const shouldRetry = async (error) => {
     }
   }
 
-  return CONFIG.CRAWLER.RETRY_STATUS_CODES.includes(error.response.status); // Retry only on specific status codes
+  return CONFIG.CRAWLER.RETRY_STATUS_CODES.includes(status); // Retry on the specified status codes
 };
 
 const shouldIncludeURL = (url) => {
