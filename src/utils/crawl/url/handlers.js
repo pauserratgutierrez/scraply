@@ -4,15 +4,18 @@ import { normalizeURL } from './normalize.js';
 // Handle HTML Status Codes HERE!
 export const shouldRetry = (error) => {
   if (!error.response) return true;
+
   if (error.response.status === 429) {
-    const waitTime = error.response.headers ? error.response.headers['retry-after'] : null;
+    const waitTime = error.response.headers?.['retry-after'];
     if (waitTime) {
-      console.log(`Rate limited for ${waitTime} seconds, exiting Crawler...`);
+      console.log(`Rate limited for ${waitTime} seconds, exiting...`);
     } else {
-      console.log(`Rate limited, no retry-after header found, exiting Crawler...`);
+      console.log(`Rate limited, no retry-after header found, exiting...`);
     }
-    process.exit(10); // GitHub Actions Docker uses values ranged from 0 to 255, so any bigger value will be % 256!
+
+    process.exit(CONFIG.CRAWLER.EXIT_CODE_RATE_LIMIT); // GitHub Actions Docker uses values ranged from 0 to 255, so any bigger value will be % 256!
   }
+
   return CONFIG.CRAWLER.RETRY_STATUS_CODES.includes(error.response.status); // Retry only on specific status codes
 };
 
