@@ -32,7 +32,6 @@ const init = () => {
       // Delete everything except CONFIG.DATA_FORMATTER.FORMATTED_PATH, so that the formatted data is always preserved until the crawler really finalizes the data.
       deleteDataFiles(CONFIG.CRAWLER.QUEUE_PATH);
       deleteDataFiles(CONFIG.CRAWLER.CRAWLED_PATH);
-      deleteDataFiles(CONFIG.DATA_FORMATTER.ERROR_REPORT_PATH);
 
       init();
     } else { // If there are URLs that haven't been processed yet, resume from the queue.
@@ -71,7 +70,7 @@ const start = async () => {
   const notCrawledUrls = totalUrls - crawledUrls;
   const errorUrls = urlData.filter(entry => entry.error !== null);
 
-  console.log(`\nCRAWLING COMPLETED! ${crawledUrls} of ${totalUrls} (${notCrawledUrls} not crawled)`);
+  console.log(`\nCRAWLING COMPLETED! ${crawledUrls} of ${totalUrls} (${notCrawledUrls} not crawled, ${errorUrls.length} errors)`);
 
   // Iterate over all the urlData and save all the url & content to files, categorized by CONFIG.DATA_FORMATTER.CATEGORISED_PATHS. Exclude the URLs that match the patterns in CONFIG.DATA_FORMATTER.EXCLUDED_PATTERNS. Save in CONFIG.DATA_FORMATTER.FORMATTED_PATH.
   console.log(`\nFORMATTING DATA...`);
@@ -102,14 +101,6 @@ const start = async () => {
     generatedFiles.add(savePath); // Track the file saved
   };
   console.log(`${totalSavedURLs} total saved URLs to ${CONFIG.DATA_FORMATTER.FORMATTED_PATH}`);
-
-  // Error reporting: Save into CONFIG.DATA_FORMATTER.ERROR_REPORT_PATH the URLs that had any error: Save the url, the referrer, status code and error!
-  const errorData = errorUrls.map(entry => {
-    return { url: entry.url, status: entry.status, error: entry.error };
-  });
-  saveSortedFormattedJSON(CONFIG.DATA_FORMATTER.ERROR_REPORT_PATH, errorData);
-
-  console.log(`Errors: ${errorData.length} -> ${CONFIG.DATA_FORMATTER.ERROR_REPORT_PATH}.`);
 
   // After formatting data, delete untracked files
   console.log(`\nCLEANING UP UNTRACKED FILES...`);
