@@ -11,7 +11,7 @@ export const saveJSON = (filePath, data) => {
 
 export const saveDataset = (data, fileNumber) => {
   if (!fs.existsSync(CONFIG.CRAWLER.CRAWLED_PATH)) fs.mkdirSync(CONFIG.CRAWLER.CRAWLED_PATH, { recursive: true });
-  const filename = `${CONFIG.CRAWLER.CRAWLED_PATH}/${fileNumber}.json`;
+  const filename = path.join(CONFIG.CRAWLER.CRAWLED_PATH, `${fileNumber}.json`);
   fs.writeFileSync(filename, JSON.stringify(data, null, 2), 'utf8');
   return filename;
 };
