@@ -14,7 +14,7 @@ export const shouldRetry = async (error) => {
     let waitTime = null;
 
     if (retryAfter) {
-      waitTime = isNan(retryAfter)
+      waitTime = isNaN(retryAfter)
         ? Math.ceil((new Date(retryAfter).getTime() - Date.now()) / 1000) // HTTP date
         : parseInt(retryAfter, 10); // Seconds
       console.log(`Rate limited. Retrying after ${waitTime} seconds...`);
