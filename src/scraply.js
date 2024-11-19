@@ -17,7 +17,7 @@ const init = () => {
   
     CONFIG.CRAWLER.INITIAL_URLS.forEach(url => {
       const normalizedURL = normalizeURL(url);
-      urlData.push({ url: normalizedURL, file: null, status: null, error: null });
+      urlData.push({ url: normalizedURL, file: null, status: null, error: null, referrerUrl: null });
     });
     saveQueue(urlData);
   } else { // If the queue is not empty

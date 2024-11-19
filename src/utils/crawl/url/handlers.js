@@ -49,7 +49,7 @@ export const enqueueURLs = (urlData, urlMetadata, $, baseURL, referrer, depth) =
       const newURL = new URL(href, baseURL).toString();
       const normalizedURL = normalizeURL(newURL);
       if (shouldIncludeURL(normalizedURL) && !urlData.some(entry => entry.url === normalizedURL)) {
-        urlData.push({ url: normalizedURL, file: null, status: null, error: null });
+        urlData.push({ url: normalizedURL, file: null, status: null, error: null, referrerUrl: referrer });
         urlMetadata[normalizedURL] = { referrer, depth };
       }
     } catch (error) {
