@@ -50,14 +50,3 @@ export const saveSortedFormattedJSON = (filePath, data) => {
   const sortedData = sortData(data, 'url'); // ensure data is sorted before saving
   return fs.writeFileSync(filePath, JSON.stringify(sortedData, null, 2), 'utf8');
 };
-
-export const saveHardcodedExtraLinks = async () => {
-  const hardcodedLinks = CONFIG.DATA_FORMATTER.HARD_CODED_LINKS;
-
-  for (const link of hardcodedLinks) {
-    const filePath = path.join(CONFIG.DATA_FORMATTER.FORMATTED_PATH, link.file_name);
-    saveSortedFormattedJSON(filePath, link.data);
-  }
-
-  return hardcodedLinks.reduce((acc, link) => acc + link.data.length, 0); // Total number of links saved
-};

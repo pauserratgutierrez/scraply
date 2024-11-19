@@ -2,8 +2,7 @@ import { loadConfig } from './loadConfig.js';
 import { normalizeURL } from './utils/crawl/url/normalize.js';
 import { loadJSON, saveQueue, deleteDataFiles, deleteUntrackedFiles } from './utils/crawl/fileOperations.js';
 import { processURL } from './utils/crawl/url/processor.js';
-import { formatData, saveSortedFormattedJSON, saveHardcodedExtraLinks } from './utils/format/formatData.js';
-import path from 'node:path';
+import { formatData, saveSortedFormattedJSON } from './utils/format/formatData.js';
 
 let urlData = [];
 let urlMetadata = {};
@@ -103,16 +102,6 @@ const start = async () => {
     generatedFiles.add(savePath); // Track the file saved
   };
   console.log(`${totalSavedURLs} total saved URLs to ${CONFIG.DATA_FORMATTER.FORMATTED_PATH}`);
-
-  // Save hardcoded extra links to files.
-  const totalHardcodedLinks = await saveHardcodedExtraLinks();
-  console.log(`${totalHardcodedLinks} Hardcoded extra links saved to ${CONFIG.DATA_FORMATTER.FORMATTED_PATH}`);
-
-  // Track the files generated for hardcoded links with full paths.
-  CONFIG.DATA_FORMATTER.HARD_CODED_LINKS.forEach(link => {
-    const hardcodedFilePath = path.join(CONFIG.DATA_FORMATTER.FORMATTED_PATH, link.file_name);
-    generatedFiles.add(hardcodedFilePath); // Add the full path to the set
-  });
 
   // Error reporting: Save into CONFIG.DATA_FORMATTER.ERROR_REPORT_PATH the URLs that had any error: Save the url, the referrer, status code and error!
   const errorData = errorUrls.map(entry => {
