@@ -24,7 +24,7 @@ export const formatData = (entry) => {
 
           // Fallback to wildcard match ('*') if no specific path is found
           if (!categorisedPath) categorisedPath = categorisedPaths['*'];
-          if (categorisedPath) return path.join(CONFIG.DATA_FORMATTER.FORMATTED_PATH, categorisedPath); // Return the path where the data should be saved.
+          if (categorisedPath) return path.posix.join(CONFIG.DATA_FORMATTER.FORMATTED_PATH, categorisedPath); // Return the path where the data should be saved.
         }
       }
     } catch (e) {

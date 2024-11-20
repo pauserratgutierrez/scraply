@@ -11,7 +11,7 @@ export const saveJSON = (filePath, data) => {
 
 export const saveDataset = (data, fileNumber) => {
   if (!fs.existsSync(CONFIG.CRAWLER.CRAWLED_PATH)) fs.mkdirSync(CONFIG.CRAWLER.CRAWLED_PATH, { recursive: true });
-  const filename = path.join(CONFIG.CRAWLER.CRAWLED_PATH, `${fileNumber}.json`);
+  const filename = path.posix.join(CONFIG.CRAWLER.CRAWLED_PATH, `${fileNumber}.json`);
   fs.writeFileSync(filename, JSON.stringify(data, null, 2), 'utf8');
   return filename;
 };
@@ -22,7 +22,7 @@ export const deleteDataFiles = (filePath) => {
   if (fs.existsSync(filePath)) {
     if (fs.lstatSync(filePath).isDirectory()) {
       fs.readdirSync(filePath).forEach((file) => {
-        const currentPath = path.join(filePath, file);
+        const currentPath = path.posix.join(filePath, file);
         if (fs.lstatSync(currentPath).isDirectory()) {
           deleteDataFiles(currentPath);
         } else {
@@ -39,7 +39,7 @@ export const deleteDataFiles = (filePath) => {
 export const deleteUntrackedFiles = (folderPath, trackedFiles) => {
   if (fs.existsSync(folderPath)) {
     fs.readdirSync(folderPath).forEach((file) => {
-      const currentPath = path.join(folderPath, file);
+      const currentPath = path.posix.join(folderPath, file);
       if (fs.lstatSync(currentPath).isDirectory()) {
         deleteUntrackedFiles(currentPath, trackedFiles);
       } else if (!trackedFiles.has(currentPath)) {
