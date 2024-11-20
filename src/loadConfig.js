@@ -19,7 +19,6 @@ export function loadConfig(userConfig = {}) {
   config.CRAWLER.QUEUE_PATH = path.posix.join(config.MAIN_DIR, 'queue.json');
   config.CRAWLER.CRAWLED_PATH = path.posix.join(config.MAIN_DIR, 'crawled');
   config.DATA_FORMATTER.FORMATTED_PATH = path.posix.join(config.MAIN_DIR, 'formatted');
-  config.DATA_FORMATTER.ERROR_REPORT_PATH = path.posix.join(config.MAIN_DIR, 'error-report.json');
 
   // If INCLUDE_URLS is not specified, set it to INITIAL_URLS by default
   if (!config.CRAWLER.INCLUDE_URLS || config.CRAWLER.INCLUDE_URLS.length === 0) {
