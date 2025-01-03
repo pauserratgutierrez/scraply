@@ -19,10 +19,7 @@ export async function fetchURL(url, retries = 2) {
       };
     };
 
-    return {
-      data: response.data,
-      status: response.status
-    };
+    return { data: response.data, status: response.status };
   } catch (error) {
     if (retries > 0 && (await shouldRetry(error))) {
       const retryCount = CONFIG.CRAWLER.MAX_RETRIES - retries + 1;
