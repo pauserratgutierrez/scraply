@@ -31,9 +31,6 @@ export async function fetchURL(url, retries = 2) {
     }
     
     console.error(`Failed to fetch ${url} -> ${error.message}`);
-    return {
-      error: error.message,
-      status: error.response?.status
-    };
+    return { error: error.message, status: error.response?.status };
   };
 };
