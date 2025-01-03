@@ -6,9 +6,6 @@ export const cleanHTML = ($) => {
   $aux(CONFIG.CRAWLER.DOM_ELEMENTS_REMOVE.join(',')).remove();
   $aux('*').contents().filter((_, el) => el.type === 'comment').remove();
 
-  // Get the text content of the body and decode HTML entities
-  // let bodyText = he.decode($aux('body').text(), { level: 'all' });
-
   // Get the text content of the body element, ensuring spaces between child elements
   let bodyText = getTextWithSpaces($aux, $aux('body'));
 
