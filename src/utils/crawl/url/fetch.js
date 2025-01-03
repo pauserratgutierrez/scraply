@@ -6,7 +6,8 @@ export async function fetchURL(url, retries = 2) {
   try {
     const response = await axios.get(url, {
       timeout: CONFIG.CRAWLER.REQUEST_TIMEOUT,
-      maxRedirects: CONFIG.CRAWLER.MAX_REDIRECTS
+      maxRedirects: CONFIG.CRAWLER.MAX_REDIRECTS,
+      maxContentLength: CONFIG.CRAWLER.MAX_CONTENT_LENGTH
     });
 
     const { 'content-type': contentType } = response.headers;
