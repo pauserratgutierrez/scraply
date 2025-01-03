@@ -35,7 +35,7 @@ export async function fetchURL(url, retries = 2) {
 
     // If still 429 after retries, exit with configured code
     if (error.response?.status === 429) {
-      console.log(`Force exiting with code ${CONFIG.CRAWLER.EXIT_CODE_RATE_LIMIT} after retries...`);
+      console.log(`Force exiting with code ${CONFIG.CRAWLER.EXIT_CODE_RATE_LIMIT} (after retries)...`);
       process.exit(CONFIG.CRAWLER.EXIT_CODE_RATE_LIMIT);
     }
     

@@ -35,15 +35,15 @@ export const DEFAULT_CONFIG = {
       'aside',
       'button'
     ],
-    RETRY_STATUS_CODES: [408, 429, 500, 502, 503, 504],
-    REQUEST_TIMEOUT: 4000,
-    MAX_REDIRECTS: 3,
+    RETRY_STATUS_CODES: [408, 500, 502, 503, 504],
+    REQUEST_TIMEOUT: 3000,
+    MAX_REDIRECTS: 2,
     MAX_CONTENT_LENGTH: 20 * 1024 * 1024, // 20MB
-    MAX_RETRIES: 2,
+    MAX_RETRIES: 1,
     CRAWL_DELAY_MS: 200,
-    CRAWL_ERROR_RETRY_DELAY_MS: 800,
+    CRAWL_ERROR_RETRY_DELAY_MS: 1000,
     CRAWL_RATE_LIMIT_FALLBACK_DELAY_MS: 60000,
-    EXIT_ON_RATE_LIMIT: true,
+    EXIT_ON_RATE_LIMIT: true, // If true, forces exit instantly. If false, only exits after retries (if still 429)
     EXIT_CODE_RATE_LIMIT: 10
   },
 
