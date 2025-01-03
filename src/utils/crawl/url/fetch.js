@@ -19,10 +19,7 @@ export async function fetchURL(url, retries = 2) {
 
     // Validate content type
     if (!CONFIG.CRAWLER.ALLOWED_CONTENT_TYPES.some(type => contentType.includes(type))) {
-      return {
-        error: `Content-Type ${contentType} is not allowed.`,
-        status: response.status
-      };
+      return { error: `Content-Type ${contentType} is not allowed.`, status: response.status };
     };
 
     return { data: response.data, status: response.status };
