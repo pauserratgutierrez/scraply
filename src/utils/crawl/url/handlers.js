@@ -11,25 +11,27 @@ export const shouldRetry = async (error) => {
   const rateLimitReset = headers?.['x-ratelimit-reset'];
 
   if (status === 429) {
-    let waitTime = null;
-
-    if (retryAfter) {
-      waitTime = isNaN(retryAfter)
-        ? Math.ceil((new Date(retryAfter).getTime() - Date.now()) / 1000) // HTTP date
-        : parseInt(retryAfter, 10); // Seconds
-      console.log(`Rate limited. Retrying after ${waitTime} seconds...`);
-    } else if (rateLimitReset) {
-      waitTime = Math.max(parseInt(rateLimitReset, 10) - Math.floor(Date.now() / 1000), 0);
-      console.log(`Rate limited. Retrying after ${waitTime} seconds...`);
-    } else {
-      waitTime = CONFIG.CRAWLER.CRAWL_RATE_LIMIT_FALLBACK_DELAY_MS / 1000;
-      console.log(`Rate limited. No 'retry-after' or 'x-ratelimit-reset' headers found. Falling back to ${waitTime} seconds...`);
-    }
+    console.log(`RATE LIMIT Detected.`);
 
     if (CONFIG.CRAWLER.EXIT_ON_RATE_LIMIT) {
-      console.log(`Exiting due to rate limit.`);
-      process.exit(CONFIG.CRAWLER.EXIT_CODE_RATE_LIMIT); // GitHub Actions Docker uses values ranged from 0 to 255, so any bigger value will be % 256!
+      console.log(`Force exiting with code ${CONFIG.CRAWLER.EXIT_CODE_RATE_LIMIT}...`);
+      process.exit(CONFIG.CRAWLER.EXIT_CODE_RATE_LIMIT); // GitHub Actions Docker uses values ranged from 0 to 255. Any bigger value will be % 256
     } else {
+      let waitTime = null;
+
+      if (retryAfter) {
+        waitTime = isNaN(retryAfter)
+          ? Math.ceil((new Date(retryAfter).getTime() - Date.now()) / 1000) // HTTP date
+          : parseInt(retryAfter, 10); // Seconds
+        console.log(`'retry-after' headers found.`);
+      } else if (rateLimitReset) {
+        waitTime = Math.max(parseInt(rateLimitReset, 10) - Math.floor(Date.now() / 1000), 0);
+        console.log(`'x-ratelimit-reset' headers found.`);
+      } else {
+        waitTime = CONFIG.CRAWLER.CRAWL_RATE_LIMIT_FALLBACK_DELAY_MS / 1000;
+        console.log(`No 'retry-after' or 'x-ratelimit-reset' headers found. Using fallback delay.`);
+      }
+      console.log(`Retrying after ${waitTime} seconds...`);
       await delay(waitTime * 1000);
     }
   }

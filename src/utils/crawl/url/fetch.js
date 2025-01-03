@@ -24,7 +24,7 @@ export async function fetchURL(url, retries = 2) {
       status: response.status
     };
   } catch (error) {
-    if (retries > 0 && shouldRetry(error)) {
+    if (retries > 0 && (await shouldRetry(error))) {
       const retryCount = CONFIG.CRAWLER.MAX_RETRIES - retries + 1;
       console.log(`Retrying (${retryCount}/${CONFIG.CRAWLER.MAX_RETRIES}) -> ${url}`);
       
