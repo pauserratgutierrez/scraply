@@ -19,7 +19,7 @@ export const shouldRetry = async (error) => {
         : parseInt(retryAfter, 10); // Seconds
       console.log(`Rate limited. Retrying after ${waitTime} seconds...`);
     } else if (rateLimitReset) {
-      waitTime = Math.max(parseInt(rateLimitReset, 10) - Math.floow(Date.now() / 1000), 0);
+      waitTime = Math.max(parseInt(rateLimitReset, 10) - Math.floor(Date.now() / 1000), 0);
       console.log(`Rate limited. Retrying after ${waitTime} seconds...`);
     } else {
       waitTime = CONFIG.CRAWLER.CRAWL_RATE_LIMIT_FALLBACK_DELAY_MS / 1000;
