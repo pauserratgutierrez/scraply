@@ -7,7 +7,7 @@ import { saveDataset, saveQueue } from '../fileOperations.js';
 
 export const processURL = async (entry, fileNumber, urlData) => {
   const startTime = new Date().getTime();
-  const { url, referrer, depth } = entry;
+  const { url, depth } = entry;
 
   if (entry.file || (entry.error && !(await shouldRetry({ response: { status: entry.status } })))) return;
   
@@ -21,7 +21,7 @@ export const processURL = async (entry, fileNumber, urlData) => {
       enqueueURLs(urlData, $, url, depth + 1);
 
       const content = cleanHTML($);
-      const filename = saveDataset({ url, referrerURL: referrer, statusCode: status, depth, content }, fileNumber);
+      const filename = saveDataset({ url, content }, fileNumber);
 
       entry.file = filename;
       entry.status = status;
