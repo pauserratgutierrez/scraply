@@ -12,6 +12,11 @@ export async function fetchURL(url, retries = 2) {
 
     const { 'content-type': contentType } = response.headers;
 
+    if (!contentType) {
+      console.log(`Missing Content-Type header for ${url}`);
+      return { error: `Missing Content-Type header`, status: response.status };
+    };
+
     // Validate content type
     if (!CONFIG.CRAWLER.ALLOWED_CONTENT_TYPES.some(type => contentType.includes(type))) {
       return {
