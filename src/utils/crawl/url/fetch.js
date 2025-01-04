@@ -1,26 +1,38 @@
 import axios from 'axios';
 import { delay } from '../delay.js';
 import { shouldRetry } from './handlers.js';
+import { fetchPageContent } from '../browser/helper.js';
 
 export async function fetchURL(url, retries = 2) {
   try {
-    const response = await axios.get(url, {
-      timeout: CONFIG.CRAWLER.REQUEST_TIMEOUT,
-      maxRedirects: CONFIG.CRAWLER.MAX_REDIRECTS,
-      maxContentLength: CONFIG.CRAWLER.MAX_CONTENT_LENGTH
-    });
+    let response;
+    
+    if (CONFIG.CRAWLER.DYNAMIC_CRAWLING) { // JavaScript Dynamic Content
+      const selector = 'body';
+      const { content, statusCode } = await fetchPageContent(url, selector);
 
-    const { 'content-type': contentType } = response.headers;
+      if (statusCode < 200 || statusCode >= 300) {
+        const error = new Error(`Invalid status code: ${statusCode}`);
+        error.response = { status: statusCode };
+        throw error;
+      }
 
-    if (!contentType) {
-      console.log(`Missing Content-Type header for ${url}`);
-      return { error: `Missing Content-Type header`, status: response.status };
-    };
+      response = { data: content, status: statusCode };
+    } else { // Static Content
+      response = await axios.get(url, {
+        timeout: CONFIG.CRAWLER.REQUEST_TIMEOUT,
+        maxRedirects: CONFIG.CRAWLER.MAX_REDIRECTS,
+        maxContentLength: CONFIG.CRAWLER.MAX_CONTENT_LENGTH
+      });
 
-    // Validate content type
-    if (!CONFIG.CRAWLER.ALLOWED_CONTENT_TYPES.some(type => contentType.includes(type))) {
-      return { error: `Content-Type ${contentType} is not allowed.`, status: response.status };
-    };
+      const { 'content-type': contentType } = response.headers;
+      if (!contentType) return { error: `Missing Content-Type header`, status: response.status };
+  
+      // Validate content type
+      if (!CONFIG.CRAWLER.ALLOWED_CONTENT_TYPES.some(type => contentType.includes(type))) {
+        return { error: `Content-Type ${contentType} is not allowed.`, status: response.status };
+      };
+    }
 
     return { data: response.data, status: response.status };
   } catch (error) {

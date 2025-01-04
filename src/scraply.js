@@ -3,6 +3,7 @@ import { normalizeURL } from './utils/crawl/url/normalize.js';
 import { loadJSON, saveQueue, deleteDataFiles, deleteUntrackedFiles } from './utils/crawl/fileOperations.js';
 import { processURL } from './utils/crawl/url/processor.js';
 import { formatData, saveSortedFormattedJSON } from './utils/format/formatData.js';
+import { initializeCluster, closeCluster } from './utils/crawl/browser/helper.js';
 
 let urlData = [];
 let CONFIG = {};
@@ -51,6 +52,10 @@ const start = async () => {
   - Crawl Delay: ${CONFIG.CRAWLER.CRAWL_DELAY_MS}ms
   - Crawl Error Retry Delay: ${CONFIG.CRAWLER.CRAWL_ERROR_RETRY_DELAY_MS}ms
   `);
+
+  if (CONFIG.CRAWLER.DYNAMIC_CRAWLING) {
+    await initializeCluster();
+  }
 
   let fileNumber = urlData.filter(entry => entry.file).length + 1;
   for await (const entry of urlData) {
@@ -104,6 +109,10 @@ const start = async () => {
   console.log(`\nCLEANING UP UNTRACKED FILES...`);
   deleteUntrackedFiles(CONFIG.DATA_FORMATTER.FORMATTED_PATH, generatedFiles); // Delete files not generated during this crawl
   generatedFiles.clear(); // Clear the set to prepare for future crawls
+
+  if (CONFIG.CRAWLER.DYNAMIC_CRAWLING) {
+    await closeCluster();
+  }
 };
 
 // Main function to be exported and used
