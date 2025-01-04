@@ -6,7 +6,7 @@ export const DEFAULT_CONFIG = {
       'https://crawler-test.com/'
     ],
     INCLUDE_URLS: [
-      'https://crawler-test.com/.*'
+      'https://crawler-test.com/'
     ],
     ALLOWED_CONTENT_TYPES: [
       'text/html'
