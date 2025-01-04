@@ -33,8 +33,16 @@ export const DEFAULT_CONFIG = {
       'header',
       'footer',
       'aside',
-      'button'
+      'button',
+      '[aria-modal]',
+      '[role="dialog"]',
+      '[role="alert"]',
+      '[role="banner"]',
+      '[role="form"]',
+      '[role="navigation"]',
+      '[role="search"]'
     ],
+    DYNAMIC_CRAWLING: false,
     RETRY_STATUS_CODES: [408, 500, 502, 503, 504],
     REQUEST_TIMEOUT: 3000,
     MAX_REDIRECTS: 2,
