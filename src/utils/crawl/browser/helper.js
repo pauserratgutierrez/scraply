@@ -10,11 +10,11 @@ export const initializeCluster = async () => {
     console.log('Initializing Puppeteer cluster...');
     cluster = await Cluster.launch({
       concurrency: Cluster.CONCURRENCY_CONTEXT,
-      maxConcurrency: 3, // Lower concurrency for stability
+      maxConcurrency: 1, // Lower concurrency for stability
       puppeteerOptions: {
         headless: true,
         args: [
-          '--no-sandbox',
+          // '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-accelerated-2d-canvas',
@@ -56,21 +56,33 @@ export const initializeCluster = async () => {
           '--enable-features=NetworkService,NetworkServiceInProcess',
           '--force-color-profile=srgb'
         ],
-        timeout: 30000
+        timeout: 15000
       }
     });
 
-    cluster.task(async ({ page, data: { url, selector } }) => {
-      let statusCode;
+    cluster.task(async ({ page, data: { url } }) => {
+      let response;
       try {
-        page.on('response', response => {
-          if (response.url() === url) statusCode = response.status();
+        page.on('response', res => {
+          if (res.url() === url) response = res;
         });
 
-        await page.goto(url, { timeout: 30000, waitUntil: 'networkidle2' }); // Possible values: load, domcontentloaded, networkidle0, networkidle2
-        await page.waitForSelector(selector, { timeout: 10000 });
+        // Skip downloading resources
+        await page.setRequestInterception(true);
+        page.on('request', (req) => {
+          const resourceType = req.resourceType();
+          if (['image', 'stylesheet', 'font'].includes(resourceType)) {
+            req.abort();
+          } else {
+            req.continue();
+          }
+        });
+
+        await page.goto(url, { timeout: 15000, waitUntil: 'domcontentloaded' }); // Possible values: load, domcontentloaded, networkidle0, networkidle2
         const content = await page.content();
-        return { content, statusCode };
+        const headers = response ? response.headers() : {};
+        const statusCode = response ? response.status() : 0;
+        return { content, headers, statusCode };
       } catch (error) {
         console.error(`Error in cluster task for URL ${url}:`, error);
         throw error;
@@ -101,7 +113,7 @@ export const fetchPageContent = async (url, selector) => {
   if (!cluster) await initializeCluster();
   try {
     const result = await cluster.execute({ url, selector }); // Returns the page content
-    return result;
+    return { data: result.content, headers: result.headers, status: result.statusCode };
   } catch (error) {
     console.error(`Error fetching page content for URL ${url}:`, error);
     throw {
