@@ -2,7 +2,6 @@ import { URL } from 'node:url';
 import { normalizeURL } from './normalize.js';
 import { delay } from '../delay.js';
 
-// Handle HTML Status Codes HERE!
 export const shouldRetry = async (error) => {
   if (!error.response) return true;
 
@@ -42,21 +41,16 @@ export const shouldRetry = async (error) => {
 const shouldIncludeURL = (url) => {
   try {
     const { INITIAL_URLS, INCLUDE_URLS, EXCLUDE_PATTERNS } = CONFIG.CRAWLER;
-
     if (INITIAL_URLS.includes(url)) return true;
 
     // Pre-compile string patterns into regular expressions for both include and exclude patterns
-    const compiledExcludePatterns = EXCLUDE_PATTERNS.map(pattern => 
-      typeof pattern === 'string' ? new RegExp(pattern) : pattern
-    );
-    const compiledIncludePatterns = INCLUDE_URLS.map(pattern => 
-      typeof pattern === 'string' ? new RegExp(pattern) : pattern
-    );
+    const compiledExcludePatterns = EXCLUDE_PATTERNS.map(p => typeof p === 'string' ? new RegExp(p) : p);
+    if (compiledExcludePatterns.some(p => p.test(url))) return false;
 
-    if (compiledExcludePatterns.some(pattern => pattern.test(url))) return false;
-    if (compiledIncludePatterns.some(pattern => pattern.test(url))) return true;
+    const compiledIncludePatterns = INCLUDE_URLS.map(p => typeof p === 'string' ? new RegExp(p) : p);
+    if (compiledIncludePatterns.some(p => p.test(url))) return true;
 
-    return false; // If the URL doesn't match any include patterns, exclude it.
+    return false; // URL doesn't match any include patterns, it is excluded.
   } catch (error) {
     console.error(`Error processing URL: ${url}`, error);
     return false;
