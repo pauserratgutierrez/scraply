@@ -48,5 +48,7 @@ export const saveSortedFormattedJSON = (filePath, data) => {
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const sortedData = sortData(data, 'url'); // ensure data is sorted before saving
-  return fs.writeFileSync(filePath, JSON.stringify(sortedData, null, 2), 'utf8');
+  // return fs.writeFileSync(filePath, JSON.stringify(sortedData, null, 2), 'utf8');
+  const lines = sortedData.map(i => `${i.url} ${i.content}`).join('\n');
+  return fs.writeFileSync(filePath, lines, 'utf8');
 };
