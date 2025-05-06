@@ -77,6 +77,8 @@ export const initializeCluster = async () => {
           }
         });
 
+        const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
+        await page.setUserAgent(ua);
         await page.goto(url, { timeout: 15000, waitUntil: 'domcontentloaded' }); // Possible values: load, domcontentloaded, networkidle0, networkidle2
         const content = await page.content();
         const headers = response ? response.headers() : {};
