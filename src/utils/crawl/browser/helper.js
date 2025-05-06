@@ -14,12 +14,12 @@ export const initializeCluster = async () => {
       puppeteerOptions: {
         headless: true,
         args: [
-          // '--no-sandbox',
+          '--no-sandbox',
           '--disable-setuid-sandbox',
+          '--no-zygote',
           '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
           '--disable-gpu',
-          // '--single-process',
+          '--disable-accelerated-2d-canvas',
           '--disable-background-networking',
           '--disable-background-timer-throttling',
           '--disable-breakpad',
@@ -38,12 +38,10 @@ export const initializeCluster = async () => {
           '--password-store=basic',
           '--use-mock-keychain',
           '--disable-software-rasterizer',
-          '--no-zygote',
           '--disable-infobars',
           '--disable-blink-features=AutomationControlled',
           '--disable-component-extensions-with-background-pages',
           '--mute-audio',
-          '--window-size=1280,800', // Moderate window size
           '--window-position=0,0',
           '--ignore-certificate-errors',
           '--ignore-certificate-errors-skip-list',
@@ -54,7 +52,8 @@ export const initializeCluster = async () => {
           '--disable-ipc-flooding-protection',
           '--disable-renderer-backgrounding',
           '--enable-features=NetworkService,NetworkServiceInProcess',
-          '--force-color-profile=srgb'
+          '--force-color-profile=srgb',
+          '--window-size=1380,900' // Moderate window size
         ],
         timeout: 15000
       }
