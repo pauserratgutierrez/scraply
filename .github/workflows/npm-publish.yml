@@ -3,7 +3,12 @@ name: Publish to NPM
 on:
   push:
     tags:
-      - 'v*' # Trigger only when a version tag is pushed
+      - 'v*'
+
+# OIDC trusted publishing (no long-lived NPM_TOKEN needed for publish).
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   publish:
@@ -11,18 +16,20 @@ jobs:
 
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org/'
+
+      # Trusted publishing requires npm CLI >= 11.5.1 (Node 22 runners ship npm 10.x).
+      - name: Upgrade npm for OIDC trusted publishing
+        run: npm install -g npm@latest
 
       - name: Install dependencies
         run: npm ci
 
       - name: Publish to npm
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
