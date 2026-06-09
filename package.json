@@ -1,26 +1,40 @@
 {
   "name": "scraply",
   "description": "A simple, configurable and functional content scraper",
-  "version": "1.0.25",
-  "main": "src/scraply.js",
+  "version": "2.0.0",
+  "main": "src/index.js",
   "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "start": "node ."
+    "start": "node .",
+    "dev": "node src/dev.js"
   },
   "keywords": [
     "crawler",
-    "scraper"
+    "scraper",
+    "web-scraping",
+    "puppeteer",
+    "cheerio"
   ],
   "author": "Pau Serrat Gutiérrez",
   "dependencies": {
-    "axios": "^1.7.9",
-    "cheerio": "^1.0.0",
-    "he": "^1.2.0",
-    "puppeteer": "^24.2.0",
-    "puppeteer-cluster": "^0.24.0"
+    "cheerio": "1.2.0",
+    "puppeteer": "25.1.0",
+    "puppeteer-cluster": "0.25.0"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",
     "access": "public"
+  },
+  "allowScripts": {
+    "puppeteer@25.1.0": true
   }
 }
