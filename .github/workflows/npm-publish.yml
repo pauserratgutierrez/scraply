@@ -24,7 +24,7 @@ jobs:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org/'
 
-      # Trusted publishing requires npm CLI >= 11.5.1 (Node 22 runners ship npm 10.x).
+      # Trusted publishing requires npm CLI >= 11.5.1; upgrade to be safe across runner images.
       - name: Upgrade npm for OIDC trusted publishing
         run: npm install -g npm@latest
 

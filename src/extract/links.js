@@ -1,11 +1,11 @@
 import { URL } from 'node:url';
-import { normalizeUrl } from '../url/normalize.js';
 
 const NON_NAVIGATIONAL = /^(mailto:|tel:|javascript:|data:)/i;
 
 /**
- * Collects unique, normalized links from anchor tags in a document. No
- * include/exclude filtering happens here; that is the crawler's job.
+ * Collects unique, absolute links from anchor tags in a document, resolving
+ * relative hrefs against `baseUrl`. Normalization and include/exclude filtering
+ * are the crawler's job (`enqueue`), so links are only resolved here.
  *
  * @param {import('cheerio').CheerioAPI} $
  * @param {string} baseUrl - used to resolve relative hrefs
@@ -19,7 +19,7 @@ export const discoverLinks = ($, baseUrl) => {
     if (!href || href.startsWith('#') || NON_NAVIGATIONAL.test(href)) return;
 
     try {
-      links.add(normalizeUrl(new URL(href, baseUrl).toString()));
+      links.add(new URL(href, baseUrl).href);
     } catch {
       // Ignore malformed hrefs.
     }

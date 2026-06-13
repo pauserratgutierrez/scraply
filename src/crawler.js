@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import * as cheerio from 'cheerio';
 
 import { loadConfig } from './config/load.js';
@@ -15,22 +16,12 @@ import { resolveFetcher } from './fetchers/index.js';
 import { formatRecords } from './output/writers.js';
 import { loadJSON, saveJSON, deletePath, deleteUntracked } from './storage/files.js';
 
-const getHeader = (headers, name) => {
-  if (!headers) return undefined;
-  if (headers[name] !== undefined) return headers[name];
-  const lower = name.toLowerCase();
-  for (const key of Object.keys(headers)) {
-    if (key.toLowerCase() === lower) return headers[key];
-  }
-  return undefined;
-};
-
 const toHtml = (data) => (typeof data === 'string' ? data : Buffer.from(data).toString('utf8'));
 
+const sha256 = (text) => createHash('sha256').update(text).digest('hex');
+
 /**
- * Creates a crawler instance. Every stage is exposed as a method so callers can
- * run the whole pipeline (`run`) or drive individual stages and add their own
- * logic via hooks.
+ * Creates a crawler instance. Every stage is exposed as a method so callers can run the whole pipeline (`run`) or drive individual stages and add their own logic via hooks.
  *
  * @param {import('./index.js').ScraplyConfig} [userConfig]
  */
@@ -40,6 +31,11 @@ export const createCrawler = (userConfig = {}) => {
   const hooks = createHooks();
   const queue = new QueueManager({ config, logger });
   const fetcher = resolveFetcher({ config, logger });
+
+  // Normalized once so the start URLs match discovered (normalized) links and
+  // can be looked up in O(1) during filtering.
+  const startUrls = config.startUrls.map(normalizeUrl);
+  const startUrlSet = new Set(startUrls);
 
   let stopped = false;
   let initialized = false;
@@ -76,9 +72,14 @@ export const createCrawler = (userConfig = {}) => {
     queue.load();
     datasetCounter = computeDatasetCounter();
 
+    if (config.crawl.retryErrors) {
+      const requeued = queue.requeueErrors();
+      if (requeued > 0) logger.info(`Re-queued ${requeued} previously errored URL(s) for retry.`);
+    }
+
     if (queue.entries.length === 0) {
-      logger.info(`Starting fresh with ${config.startUrls.length} start URL(s).`);
-      queue.seed(config.startUrls.map(normalizeUrl));
+      logger.info(`Starting fresh with ${startUrls.length} start URL(s).`);
+      queue.seed(startUrls);
       return;
     }
 
@@ -88,7 +89,7 @@ export const createCrawler = (userConfig = {}) => {
         queue.reset();
         deletePath(config.storage.crawledDir);
         datasetCounter = 0;
-        queue.seed(config.startUrls.map(normalizeUrl));
+        queue.seed(startUrls);
       } else {
         logger.info('All URLs already processed (resetOnComplete is false). Nothing to do.');
       }
@@ -100,22 +101,22 @@ export const createCrawler = (userConfig = {}) => {
 
   // --- stage methods ---
 
-  /** Fetches a single URL (with retry/rate-limit policy) and returns the raw result. */
+  // Fetches a single URL (with retry/rate-limit policy) and returns the raw result.
   const fetchUrl = (url) => retryRunner.run(() => fetcher.fetch(normalizeUrl(url)));
 
-  /** Extracts readable text from HTML. */
+  // Extracts readable text from HTML.
   const extract = (html, url = null) => ({
     url,
     content: extractText(html, { removeSelectors: config.extract.removeSelectors })
   });
 
   const shouldCrawl = (url) => {
-    if (config.startUrls.some((start) => normalizeUrl(start) === url)) return true;
+    if (startUrlSet.has(url)) return true;
     if (matchesAnyPattern(url, config.exclude)) return false;
     return matchesAnyPattern(url, config.include);
   };
 
-  /** Filters + normalizes URLs and adds the survivors to the queue. */
+  // Filters + normalizes URLs and adds the survivors to the queue.
   const enqueue = async (urls, { depth = 0, referrer = null } = {}) => {
     const list = Array.isArray(urls) ? urls : [urls];
     let added = 0;
@@ -137,15 +138,17 @@ export const createCrawler = (userConfig = {}) => {
     return added;
   };
 
+  // Persists a crawled record and returns its filename (relative to crawledDir).
+  // Only the bare name is stored in the queue so datasets stay portable.
   const saveDataset = (record) => {
     datasetCounter += 1;
-    const filePath = path.posix.join(config.storage.crawledDir, `${datasetCounter}.json`);
-    saveJSON(filePath, record);
-    return filePath;
+    const file = `${datasetCounter}.json`;
+    saveJSON(path.posix.join(config.storage.crawledDir, file), record);
+    return file;
   };
 
   const processOne = async (entry) => {
-    if (entry.file || entry.error) return;
+    if (entry.file || entry.error || entry.skipped) return;
 
     processedCount += 1;
     logger.info(`- ${processedCount}/${queue.entries.length} -> ${entry.url}`);
@@ -154,9 +157,10 @@ export const createCrawler = (userConfig = {}) => {
       const result = await retryRunner.run(() => fetcher.fetch(entry.url));
       await hooks.emit('response', result, entry);
 
-      const contentType = getHeader(result.headers, 'content-type');
+      // Fetchers return lowercased header keys (see Fetcher interface).
+      const contentType = result.headers?.['content-type'];
       if (!contentType || !config.allowedContentTypes.some((type) => contentType.includes(type))) {
-        queue.markError(entry, { error: `Skipped content-type: ${contentType ?? 'none'}`, status: result.status });
+        queue.markSkipped(entry, { reason: `content-type: ${contentType ?? 'none'}`, status: result.status });
         return;
       }
 
@@ -168,25 +172,41 @@ export const createCrawler = (userConfig = {}) => {
       let content = extractText($, { removeSelectors: config.extract.removeSelectors });
       content = await hooks.reduce('extract', content, $, entry);
 
-      const file = saveDataset({ url: entry.url, content });
+      const record = {
+        url: entry.url,
+        content,
+        crawledAt: new Date().toISOString(),
+        hash: sha256(content)
+      };
+
+      const file = saveDataset(record);
       queue.markDone(entry, { file, status: result.status });
 
-      const record = await hooks.reduce('transform', { url: entry.url, content }, entry);
-      await hooks.emit('page', record, entry);
+      const transformed = await hooks.reduce('transform', record, entry);
+      await hooks.emit('page', transformed, entry);
     } catch (error) {
-      queue.markError(entry, { error: error.message, status: error.response?.status });
+      // A 429 only reaches here when rateLimit.exitOnLimit is true and the
+      // process is already exiting; leave the entry pending so the next run
+      // retries it instead of recording a permanent error.
+      if (error.response?.status !== 429) {
+        queue.markError(entry, { error: error.message, status: error.response?.status });
+      }
       await hooks.emit('error', error, entry);
       logger.error(`Failed to fetch ${entry.url} -> ${error.message}`);
     }
   };
 
   const logBanner = () => {
+    const browserLine =
+      fetcher.name === 'browser' ? `\n  - Browser waitUntil: ${config.browser.waitUntil}` : '';
+
     logger.info(`STARTING SCRAPLY CRAWLER...
   - Start URLs: ${config.startUrls.join(', ')}
-  - Fetcher: ${fetcher.name}
+  - Fetcher: ${fetcher.name}${browserLine}
   - Concurrency: ${config.crawl.concurrency}
   - Per-host delay: ${config.crawl.delay}ms
   - Max depth: ${config.crawl.maxDepth}
+  - Max pages: ${config.crawl.maxPages}
   - Allowed content types: ${config.allowedContentTypes.join(', ')}
   - Output format: ${config.output.format}
 `);
@@ -208,47 +228,51 @@ export const createCrawler = (userConfig = {}) => {
     process.once('SIGTERM', handler);
   };
 
-  /** Crawls until the queue is drained (or `stop()` is called). */
+  // Crawls until the queue is drained (or `stop()` is called).
   const crawl = async () => {
     init();
     logBanner();
     registerSignals();
 
     if (fetcher.init) await fetcher.init();
-    processedCount = queue.crawledCount() + queue.errorCount();
+    processedCount = queue.crawledCount() + queue.errorCount() + queue.skippedCount();
 
     await runPipeline({
       queue,
       concurrency: config.crawl.concurrency,
       perHostDelay: config.crawl.delay,
       processOne,
-      isStopped: () => stopped
+      isStopped: () => stopped || queue.crawledCount() >= config.crawl.maxPages
     });
 
     queue.flush();
+
+    if (config.crawl.maxPages !== Infinity && queue.crawledCount() >= config.crawl.maxPages) {
+      logger.info(`Reached maxPages limit (${config.crawl.maxPages}).`);
+    }
+
     logger.info(
-      `Crawling completed! ${queue.crawledCount()} of ${queue.entries.length} ` +
-        `(${queue.entries.length - queue.crawledCount()} not crawled, ${queue.errorCount()} errors)`
+      `Crawling completed! ${queue.crawledCount()} crawled, ${queue.skippedCount()} skipped, ` +
+        `${queue.errorCount()} errors, ${queue.pendingCount()} pending (of ${queue.entries.length} total).`
     );
   };
 
-  /** Re-reads crawled pages from disk so resumed runs include earlier sessions. */
+  // Re-reads crawled pages from disk so resumed runs include earlier sessions.
   const collectRecords = () => {
     const records = [];
     for (const entry of queue.entries) {
-      if (!entry.file || entry.error) continue;
-      const data = loadJSON(entry.file, null);
+      if (!entry.file) continue;
+      const data = loadJSON(path.posix.join(config.storage.crawledDir, entry.file), null);
       if (data) records.push({ url: entry.url, content: data.content });
     }
     return records;
   };
 
-  /**
-   * Routes records to their output files and writes them. Defaults to every
-   * successfully crawled page; pass an explicit array to format custom records.
-   */
+  // Routes records to their output files and writes them. Defaults to every successfully crawled page; pass an explicit array to format custom records. When reading from disk, reloads `dataset/queue.json` first so this can run without calling `crawl()` (e.g. after changing `output.routes`).
   const format = async (records = null) => {
     logger.info('Formatting data...');
+
+    if (records === null) queue.load();
 
     const collected = records ?? collectRecords();
     const groups = formatRecords(collected, {
@@ -269,7 +293,7 @@ export const createCrawler = (userConfig = {}) => {
     return groups;
   };
 
-  /** Full pipeline: init -> crawl -> format, with guaranteed cleanup. */
+  // Full pipeline: init -> crawl -> format, with guaranteed cleanup.
   const run = async () => {
     try {
       await crawl();
@@ -292,11 +316,17 @@ export const createCrawler = (userConfig = {}) => {
     crawl,
     format,
     run,
+    // Clears errored entries and returns them to the queue so a later crawl()
+    // retries them. Persists immediately; returns how many were requeued.
+    requeueErrors: () => {
+      if (queue.entries.length === 0) queue.load();
+      return queue.requeueErrors();
+    },
     stop: () => {
       stopped = true;
     }
   };
 };
 
-/** One-call convenience wrapper: create a crawler and run the full pipeline. */
+// One-call convenience wrapper: create a crawler and run the full pipeline.
 export const scraply = (userConfig = {}) => createCrawler(userConfig).run();

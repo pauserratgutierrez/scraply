@@ -1,18 +1,18 @@
 import { Cluster } from 'puppeteer-cluster';
 
-const BLOCKED_RESOURCES = new Set(['image', 'stylesheet', 'font', 'media']);
-
 /**
- * Puppeteer-cluster backend for JavaScript-rendered pages. `page.goto` already
- * follows redirects and returns the final response, so no manual redirect
- * handling is needed.
+ * Puppeteer-cluster backend for JavaScript-rendered pages. `page.goto` already follows redirects and returns the final response, so no manual redirect handling is needed. The `browser` config is validated once in `loadConfig`, so no re-validation is needed here.
  *
  * @param {import('./types.js').FetcherDeps} deps
  * @returns {import('./types.js').Fetcher}
  */
 export const createBrowserFetcher = ({ config, logger }) => {
-  const { request, crawl } = config;
+  const { request, crawl, browser } = config;
   const timeout = Math.max(request.timeout, 5000);
+
+  const { waitUntil, blockResources } = browser;
+  const blockedResources = new Set(blockResources);
+
   let cluster = null;
 
   const init = async () => {
@@ -31,13 +31,19 @@ export const createBrowserFetcher = ({ config, logger }) => {
 
     await cluster.task(async ({ page, data: url }) => {
       await page.setUserAgent(request.userAgent);
-      await page.setRequestInterception(true);
-      page.on('request', (req) => {
-        if (BLOCKED_RESOURCES.has(req.resourceType())) req.abort();
-        else req.continue();
-      });
+      if (Object.keys(request.headers).length > 0) {
+        await page.setExtraHTTPHeaders(request.headers);
+      }
 
-      const response = await page.goto(url, { timeout, waitUntil: 'domcontentloaded' });
+      if (blockedResources.size > 0) {
+        await page.setRequestInterception(true);
+        page.on('request', (req) => {
+          if (blockedResources.has(req.resourceType())) req.abort();
+          else req.continue();
+        });
+      }
+
+      const response = await page.goto(url, { timeout, waitUntil });
       const data = await page.content();
 
       return {

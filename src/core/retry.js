@@ -22,46 +22,50 @@ const computeWait = (headers = {}, fallback) => {
  * Wraps a fetch operation with retry and rate-limit handling shared by every
  * fetcher backend.
  *
+ * Rate limiting (HTTP 429) is handled independently of the normal retry budget:
+ * when `rateLimit.exitOnLimit` is false the runner waits (honoring `retry-after`
+ * / `x-ratelimit-reset`) and retries until the host relents; otherwise it
+ * triggers a clean exit so a scheduler can resume the crawl later.
+ *
  * @param {{ config: import('../index.js').ResolvedConfig, logger: any, onRateLimitExit: (code: number) => void }} deps
  */
 export const createRetryRunner = ({ config, logger, onRateLimitExit }) => {
   const { retry, rateLimit } = config;
 
-  const shouldRetry = async (error) => {
-    const status = error?.response?.status;
-    if (status === undefined) return true; // network/transport error
-
-    if (status === 429) {
-      if (rateLimit.exitOnLimit) return false; // run() handles the exit
-      const wait = computeWait(error.response.headers, rateLimit.fallbackDelay);
-      logger.warn(`Rate limited. Waiting ${Math.round(wait / 1000)}s before retrying...`);
-      await delay(wait);
-      return true;
-    }
-
-    return retry.statusCodes.includes(status);
-  };
-
   const run = async (fn) => {
-    for (let attempt = 0; ; attempt++) {
+    let attempt = 0;
+
+    for (;;) {
       try {
         return await fn();
       } catch (error) {
-        const canRetry = attempt < retry.max && (await shouldRetry(error));
-        if (canRetry) {
-          logger.info(`Retry ${attempt + 1}/${retry.max} -> ${error.message}`);
+        const status = error?.response?.status;
+
+        if (status === 429) {
+          if (rateLimit.exitOnLimit) {
+            logger.warn(`Force exiting with code ${rateLimit.exitCode} (rate limited).`);
+            onRateLimitExit(rateLimit.exitCode);
+            throw error;
+          }
+
+          const wait = computeWait(error.response.headers, rateLimit.fallbackDelay);
+          logger.warn(`Rate limited. Waiting ${Math.round(wait / 1000)}s before retrying...`);
+          await delay(wait);
+          continue; // rate-limit waits never consume the retry budget
+        }
+
+        const retriable = status === undefined || retry.statusCodes.includes(status);
+        if (retriable && attempt < retry.max) {
+          attempt += 1;
+          logger.info(`Retry ${attempt}/${retry.max} -> ${error.message}`);
           if (retry.delay > 0) await delay(retry.delay);
           continue;
         }
 
-        if (error?.response?.status === 429) {
-          logger.warn(`Force exiting with code ${rateLimit.exitCode} (rate limited).`);
-          onRateLimitExit(rateLimit.exitCode);
-        }
         throw error;
       }
     }
   };
 
-  return { run, shouldRetry };
+  return { run };
 };

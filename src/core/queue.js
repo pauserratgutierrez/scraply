@@ -3,19 +3,21 @@ import { loadJSON, saveJSON, deletePath } from '../storage/files.js';
 /**
  * @typedef {Object} QueueEntry
  * @property {string} url
- * @property {string|null} file     - path to the saved crawled file, or null
+ * @property {string|null} file     - filename of the saved crawled record (relative to crawledDir), or null
  * @property {number|null} status   - last HTTP status
  * @property {string|null} error    - error message, or null
+ * @property {string|null} skipped  - reason the page was skipped (e.g. content-type), or null
  * @property {string|null} referrer - URL this entry was discovered on
  * @property {number} depth
  */
 
-const isProcessed = (entry) => entry.file !== null || entry.error !== null;
+const isProcessed = (entry) => entry.file !== null || entry.error !== null || entry.skipped !== null;
 
 /**
  * Owns the crawl queue: dedup, depth limiting, status tracking and durable
- * checkpointing. Persistence is debounced so a high-concurrency crawl does not
- * rewrite the queue file on every single URL.
+ * checkpointing. Status totals are tracked incrementally (O(1) reads) and
+ * persistence is debounced so a high-concurrency crawl does not rewrite the
+ * queue file on every single URL.
  */
 export class QueueManager {
   /** @param {{ config: import('../index.js').ResolvedConfig, logger: any }} deps */
@@ -32,16 +34,30 @@ export class QueueManager {
     /** @type {QueueEntry[]} */
     this._pending = [];
     this._cursor = 0;
+    this._crawled = 0;
+    this._errors = 0;
+    this._skipped = 0;
     this._dirty = false;
     this._timer = null;
     this._persistInterval = 1000;
   }
 
-  /** Loads any previously persisted queue and rebuilds the in-memory indexes. */
+  /** Loads any previously persisted queue and rebuilds the in-memory indexes and totals. */
   load() {
     this.entries = loadJSON(this.path, []) ?? [];
     this.index = new Set(this.entries.map((entry) => entry.url));
-    this._pending = this.entries.filter((entry) => !isProcessed(entry));
+    this._pending = [];
+    this._crawled = 0;
+    this._errors = 0;
+    this._skipped = 0;
+
+    for (const entry of this.entries) {
+      if (entry.file !== null) this._crawled += 1;
+      else if (entry.error !== null) this._errors += 1;
+      else if (entry.skipped !== null) this._skipped += 1;
+      else this._pending.push(entry);
+    }
+
     this._cursor = 0;
     return this.entries;
   }
@@ -59,7 +75,7 @@ export class QueueManager {
   add(url, { depth = 0, referrer = null } = {}) {
     if (this.index.has(url) || depth > this.maxDepth) return false;
 
-    const entry = { url, file: null, status: null, error: null, referrer, depth };
+    const entry = { url, file: null, status: null, error: null, skipped: null, referrer, depth };
     this.index.add(url);
     this.entries.push(entry);
     this._pending.push(entry);
@@ -76,29 +92,64 @@ export class QueueManager {
     entry.file = file;
     entry.status = status;
     entry.error = null;
+    entry.skipped = null;
+    this._crawled += 1;
     this._markDirty();
   }
 
   markError(entry, { error, status }) {
     entry.error = error;
     entry.status = status ?? null;
+    this._errors += 1;
     this._markDirty();
   }
 
+  markSkipped(entry, { reason, status }) {
+    entry.skipped = reason;
+    entry.status = status ?? null;
+    this._skipped += 1;
+    this._markDirty();
+  }
+
+  /**
+   * Clears the error on every failed entry and returns it to the pending set so
+   * the next crawl retries it. Persists immediately so a fresh `load()` (e.g. at
+   * the start of `crawl()`) sees the requeued entries.
+   * @returns {number} how many entries were requeued
+   */
+  requeueErrors() {
+    let count = 0;
+    for (const entry of this.entries) {
+      if (entry.error !== null) {
+        entry.error = null;
+        entry.status = null;
+        this._pending.push(entry);
+        this._errors -= 1;
+        count += 1;
+      }
+    }
+    if (count > 0) this.flush();
+    return count;
+  }
+
   isAllProcessed() {
-    return this.entries.length > 0 && this.entries.every(isProcessed);
+    return this.entries.length > 0 && this.pendingCount() === 0;
   }
 
   pendingCount() {
-    return this.entries.filter((entry) => !isProcessed(entry)).length;
+    return this.entries.length - this._crawled - this._errors - this._skipped;
   }
 
   crawledCount() {
-    return this.entries.filter((entry) => entry.file !== null).length;
+    return this._crawled;
   }
 
   errorCount() {
-    return this.entries.filter((entry) => entry.error !== null).length;
+    return this._errors;
+  }
+
+  skippedCount() {
+    return this._skipped;
   }
 
   /** Clears in-memory state and removes the persisted queue file. */
@@ -107,6 +158,9 @@ export class QueueManager {
     this.index = new Set();
     this._pending = [];
     this._cursor = 0;
+    this._crawled = 0;
+    this._errors = 0;
+    this._skipped = 0;
     this._dirty = false;
     deletePath(this.path);
   }
