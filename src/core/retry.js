@@ -1,4 +1,5 @@
 import { delay } from '../util/delay.js';
+import { RateLimitError } from './errors.js';
 
 /** Derives how long to wait (ms) from rate-limit headers, falling back to a default. */
 const computeWait = (headers = {}, fallback) => {
@@ -24,12 +25,12 @@ const computeWait = (headers = {}, fallback) => {
  *
  * Rate limiting (HTTP 429) is handled independently of the normal retry budget:
  * when `rateLimit.exitOnLimit` is false the runner waits (honoring `retry-after`
- * / `x-ratelimit-reset`) and retries until the host relents; otherwise it
- * triggers a clean exit so a scheduler can resume the crawl later.
+ * / `x-ratelimit-reset`) and retries until the host relents; otherwise it throws
+ * a `RateLimitError` so the crawl aborts cleanly and can be resumed later.
  *
- * @param {{ config: import('../index.js').ResolvedConfig, logger: any, onRateLimitExit: (code: number) => void }} deps
+ * @param {{ config: import('../index.js').ResolvedConfig, logger: any }} deps
  */
-export const createRetryRunner = ({ config, logger, onRateLimitExit }) => {
+export const createRetryRunner = ({ config, logger }) => {
   const { retry, rateLimit } = config;
 
   const run = async (fn) => {
@@ -43,9 +44,12 @@ export const createRetryRunner = ({ config, logger, onRateLimitExit }) => {
 
         if (status === 429) {
           if (rateLimit.exitOnLimit) {
-            logger.warn(`Force exiting with code ${rateLimit.exitCode} (rate limited).`);
-            onRateLimitExit(rateLimit.exitCode);
-            throw error;
+            logger.warn(`Rate limited. Aborting crawl (exitOnLimit) with code ${rateLimit.exitCode}.`);
+            throw new RateLimitError('Rate limited', {
+              code: rateLimit.exitCode,
+              headers: error.response.headers,
+              cause: error
+            });
           }
 
           const wait = computeWait(error.response.headers, rateLimit.fallbackDelay);

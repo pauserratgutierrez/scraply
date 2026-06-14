@@ -3,9 +3,14 @@
   "description": "A simple, configurable and functional content scraper",
   "version": "2.0.1",
   "main": "src/index.js",
+  "types": "./src/index.d.ts",
   "type": "module",
   "exports": {
-    ".": "./src/index.js"
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.js",
+      "default": "./src/index.js"
+    }
   },
   "files": [
     "src"

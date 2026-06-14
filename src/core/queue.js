@@ -112,24 +112,42 @@ export class QueueManager {
   }
 
   /**
-   * Clears the error on every failed entry and returns it to the pending set so
-   * the next crawl retries it. Persists immediately so a fresh `load()` (e.g. at
-   * the start of `crawl()`) sees the requeued entries.
+   * Returns matching terminal entries to the pending set so the next crawl
+   * retries them. Persists immediately so a fresh `load()` (e.g. at the start of
+   * `crawl()`) sees the requeued entries.
+   * @param {(entry: QueueEntry) => boolean} match
    * @returns {number} how many entries were requeued
    */
-  requeueErrors() {
+  _requeue(match) {
     let count = 0;
     for (const entry of this.entries) {
-      if (entry.error !== null) {
-        entry.error = null;
-        entry.status = null;
-        this._pending.push(entry);
-        this._errors -= 1;
-        count += 1;
-      }
+      if (!match(entry)) continue;
+
+      if (entry.error !== null) this._errors -= 1;
+      if (entry.skipped !== null) this._skipped -= 1;
+
+      entry.error = null;
+      entry.skipped = null;
+      entry.status = null;
+      this._pending.push(entry);
+      count += 1;
     }
     if (count > 0) this.flush();
     return count;
+  }
+
+  /** Re-queues every errored entry for retry. @returns {number} */
+  requeueErrors() {
+    return this._requeue((entry) => entry.error !== null);
+  }
+
+  /**
+   * Re-queues every skipped entry for another attempt. Useful after widening
+   * `allowedContentTypes` (or changing `sites`) so previously skipped URLs are
+   * reconsidered. @returns {number}
+   */
+  requeueSkipped() {
+    return this._requeue((entry) => entry.skipped !== null);
   }
 
   isAllProcessed() {

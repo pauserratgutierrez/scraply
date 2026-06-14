@@ -20,6 +20,11 @@ export const DEFAULT_CONFIG = {
   // Only responses whose Content-Type includes one of these are parsed.
   allowedContentTypes: ['text/html'],
 
+  // Per-origin/route overrides. Each entry: { match, allowedContentTypes?, extract? }.
+  // `match` is a URL prefix / RegExp (or an array of them); the most specific
+  // match wins and its fields override the top-level config for matching URLs.
+  sites: [],
+
   // 'http' (native fetch), 'browser' (Puppeteer) or a custom Fetcher instance.
   fetcher: 'http',
 
@@ -34,6 +39,11 @@ export const DEFAULT_CONFIG = {
 
   // 'silent' | 'error' | 'warn' | 'info' | 'debug'
   logLevel: 'info',
+
+  // Install SIGINT/SIGTERM handlers for a graceful stop (first signal finishes
+  // in-flight work and flushes; a second forces quit). Set false when embedding
+  // Scraply so it never touches process signals.
+  signals: true,
 
   storage: {
     dir: 'dataset'
@@ -55,7 +65,10 @@ export const DEFAULT_CONFIG = {
 
   rateLimit: {
     fallbackDelay: 60000,
-    exitOnLimit: true,
+    // false: wait (honoring retry-after / x-ratelimit-reset) and retry until the
+    // host relents. true: abort the crawl with a RateLimitError carrying
+    // `exitCode` so a scheduler can resume it later (the queue is persistent).
+    exitOnLimit: false,
     exitCode: 10
   },
 
@@ -65,10 +78,22 @@ export const DEFAULT_CONFIG = {
     maxDepth: Infinity,
     maxPages: Infinity, // hard cap on successfully crawled pages (counts across resumes)
     resetOnComplete: true,
-    retryErrors: false // re-queue previously errored URLs on resume so they are retried
+    retryErrors: false, // re-queue previously errored URLs on resume so they are retried
+    retrySkipped: false, // re-queue previously skipped URLs on resume (e.g. after widening allowedContentTypes)
+    sitemap: false // true -> seed <origin>/sitemap.xml per start URL; or pass an array of sitemap URLs
   },
 
   extract: {
+    // Allow-list the container(s) to extract text from: a selector, an array of
+    // selectors, or null for the whole <body>. Falls back to `rootFallback`
+    // when the selector matches nothing.
+    root: null,
+    rootFallback: 'body',
+
+    // true -> JSON responses are parsed and stored as pretty-printed `content`
+    // (with the parsed value on `record.data`). false -> store the raw body text.
+    json: true,
+
     removeSelectors: [
       'script',
       'noscript',
